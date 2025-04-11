@@ -1,0 +1,318 @@
+# RAPPORT D'ADMINISTRATION POSTGRESQL
+# PROJET SPORTTRACKER BASIC
+===============================
+
+## Introduction
+
+Ce rapport présente les différentes étapes d'administration de la base de données PostgreSQL du projet SportTracker Basic. Ce projet a pour objectif de suivre les équipes sportives universitaires, les joueurs, les matchs et les statistiques associées.
+
+L'administration de cette base de données a été réalisée en suivant les bonnes pratiques de gestion de bases de données PostgreSQL et en mettant l'accent sur la sécurité, les performances et la sauvegarde des données.
+
+## 1. Création et structure de la base de données
+
+### 1.1 Commandes de création de la base de données
+
+La base de données a été créée avec la commande suivante :
+
+```sql
+createdb -U postgres sporttracker
+```
+
+### 1.2 Création des tables
+
+Les tables ont été créées en exécutant le script `create_tables.sql` :
+
+```sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/create_tables.sql
+```
+
+Ce script a créé 5 tables principales :
+- `equipes` : stocke les informations sur les équipes universitaires
+- `joueurs` : contient les données des joueurs avec leur équipe
+- `sports` : liste les différents sports pratiqués
+- `matchs` : enregistre les rencontres entre équipes
+- `statistiques_joueurs` : contient les performances des joueurs lors des matchs
+
+### 1.3 Importation des données
+
+L'importation des données a été réalisée en deux étapes :
+
+1. Pour les tables `equipes` et `joueurs`, nous avons utilisé des insertions SQL directes via le script `manual_import.sql` :
+   ```sql
+   psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/manual_import.sql
+   ```
+
+2. Pour les tables `sports`, `matchs` et `statistiques_joueurs`, nous avons utilisé le script `insert_data.sql` :
+   ```sql
+   psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/insert_data.sql
+   ```
+
+La base contient maintenant :
+- 10 équipes universitaires
+- 50 joueurs (5 par équipe)
+- 5 sports différents
+- 15 matchs
+- 28 statistiques de joueurs
+
+## 2. Gestion des utilisateurs et permissions
+
+### 2.1 Création des utilisateurs
+
+Deux utilisateurs ont été créés avec des niveaux d'accès différents :
+
+```sql
+-- Utilisateur pour l'application
+CREATE USER sporttracker_app WITH PASSWORD 'app_password_secure123';
+
+-- Utilisateur administrateur
+CREATE USER sporttracker_admin WITH PASSWORD 'admin_password_secure456';
+```
+
+### 2.2 Attribution des permissions
+
+Les permissions ont été attribuées selon le principe du moindre privilège :
+
+```sql
+-- Permissions pour l'utilisateur de l'application
+GRANT CONNECT ON DATABASE sporttracker TO sporttracker_app;
+GRANT USAGE ON SCHEMA public TO sporttracker_app;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO sporttracker_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO sporttracker_app;
+
+-- Permissions pour les futurs objets
+ALTER DEFAULT PRIVILEGES IN SCHEMA public 
+GRANT SELECT, INSERT, UPDATE ON TABLES TO sporttracker_app;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public 
+GRANT USAGE, SELECT ON SEQUENCES TO sporttracker_app;
+
+-- Permissions complètes pour l'administrateur
+GRANT ALL PRIVILEGES ON DATABASE sporttracker TO sporttracker_admin;
+GRANT ALL PRIVILEGES ON SCHEMA public TO sporttracker_admin;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO sporttracker_admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO sporttracker_admin;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO sporttracker_admin;
+```
+
+L'utilisateur `sporttracker_app` a des permissions limitées (SELECT, INSERT, UPDATE) pour les opérations quotidiennes de l'application, tandis que `sporttracker_admin` a tous les privilèges pour les tâches d'administration.
+
+## 3. Stratégie d'optimisation
+
+### 3.1 Création d'index
+
+Pour optimiser les performances, nous avons créé des index stratégiques sur les colonnes fréquemment utilisées dans les requêtes :
+
+```sql
+-- Index sur la table équipes
+CREATE INDEX idx_equipes_nom ON equipes (nom);
+CREATE INDEX idx_equipes_etablissement ON equipes (etablissement);
+CREATE INDEX idx_equipes_division ON equipes (division);
+
+-- Index sur la table joueurs
+CREATE INDEX idx_joueurs_equipe_id ON joueurs (equipe_id);
+CREATE INDEX idx_joueurs_nom_prenom ON joueurs (nom, prenom);
+CREATE INDEX idx_joueurs_position ON joueurs (position);
+
+-- Index sur la table matchs
+CREATE INDEX idx_matchs_date ON matchs (date);
+CREATE INDEX idx_matchs_equipe_domicile ON matchs (equipe_domicile_id);
+CREATE INDEX idx_matchs_equipe_visiteur ON matchs (equipe_visiteur_id);
+CREATE INDEX idx_matchs_sport ON matchs (sport_id);
+
+-- Index sur la table statistiques_joueurs
+CREATE INDEX idx_statistiques_joueur ON statistiques_joueurs (joueur_id);
+CREATE INDEX idx_statistiques_match ON statistiques_joueurs (match_id);
+CREATE INDEX idx_statistiques_points ON statistiques_joueurs (points_marques DESC);
+```
+
+Ces index ont été choisis pour optimiser :
+- Les recherches par nom d'équipe et établissement
+- Les filtres par division, position et sport
+- Les jointures entre joueurs et équipes
+- Les tris par date et points marqués
+
+### 3.2 Maintenance automatisée
+
+Un script de maintenance `maintenance.sql` a été créé pour exécuter régulièrement les opérations VACUUM et ANALYZE :
+
+```sql
+-- Exécution de VACUUM ANALYZE sur toutes les tables
+VACUUM ANALYZE;
+
+-- VACUUM FULL sur chaque table
+VACUUM FULL ANALYZE sports;
+VACUUM FULL ANALYZE equipes;
+VACUUM FULL ANALYZE joueurs;
+VACUUM FULL ANALYZE matchs;
+VACUUM FULL ANALYZE statistiques_joueurs;
+
+-- ANALYZE détaillé de chaque table
+ANALYZE VERBOSE sports;
+ANALYZE VERBOSE equipes;
+ANALYZE VERBOSE joueurs;
+ANALYZE VERBOSE matchs;
+ANALYZE VERBOSE statistiques_joueurs;
+
+-- Vérification des index
+REINDEX DATABASE sporttracker;
+```
+
+### 3.3 Création de vues d'analyse
+
+Pour faciliter l'accès aux données et optimiser les requêtes complexes, nous avons créé 10 vues spécialisées :
+
+```sql
+-- Exemples de vues créées
+CREATE OR REPLACE VIEW team_stats AS ...
+CREATE OR REPLACE VIEW top_players AS ...
+CREATE OR REPLACE VIEW match_details AS ...
+```
+
+Ces vues optimisent l'accès aux statistiques fréquemment demandées comme :
+- Performances des équipes (victoires, défaites)
+- Classement des joueurs par points marqués
+- Détails des matchs avec scores et vainqueurs
+- Statistiques par établissement et par sport
+
+## 4. Stratégie de sécurité
+
+### 4.1 Authentification sécurisée
+
+La sécurité a été configurée à plusieurs niveaux :
+
+```sql
+-- Configuration du chiffrement des mots de passe
+ALTER SYSTEM SET password_encryption = 'scram-sha-256';
+
+-- Utilisation de mots de passe forts
+-- app_password_secure123 et admin_password_secure456
+
+-- Limitation des connexions par IP
+-- Configuration dans pg_hba.conf pour limiter aux adresses locales :
+-- 127.0.0.1/32, ::1/128, 192.168.0.0/24
+```
+
+### 4.2 Audit des opérations
+
+Un système d'audit a été mis en place pour surveiller les opérations sensibles :
+
+```sql
+-- Table d'audit
+CREATE TABLE audit_log (
+    id SERIAL PRIMARY KEY,
+    event_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    user_name TEXT,
+    table_name TEXT,
+    operation TEXT,
+    query TEXT,
+    ip_address TEXT
+);
+
+-- Fonction de journalisation
+CREATE OR REPLACE FUNCTION log_audit() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO audit_log (user_name, table_name, operation, query, ip_address)
+    VALUES (CURRENT_USER, TG_TABLE_NAME, TG_OP, current_query(), inet_client_addr());
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Déclencheurs sur les tables principales
+CREATE TRIGGER audit_equipes AFTER INSERT OR UPDATE OR DELETE ON equipes
+FOR EACH STATEMENT EXECUTE FUNCTION log_audit();
+
+CREATE TRIGGER audit_joueurs AFTER INSERT OR UPDATE OR DELETE ON joueurs
+FOR EACH STATEMENT EXECUTE FUNCTION log_audit();
+
+CREATE TRIGGER audit_matchs AFTER INSERT OR UPDATE OR DELETE ON matchs
+FOR EACH STATEMENT EXECUTE FUNCTION log_audit();
+```
+
+### 4.3 Configuration des timeouts
+
+Pour éviter les connexions abandonnées et les requêtes infinies :
+
+```sql
+-- Timeout des requêtes (5 minutes)
+ALTER SYSTEM SET statement_timeout = '300000';
+
+-- Timeout des transactions inactives (10 minutes)
+ALTER SYSTEM SET idle_in_transaction_session_timeout = '600000';
+```
+
+### 4.4 Protection contre les accès indésirables
+
+```sql
+-- Restrictions sur les schémas système
+REVOKE ALL ON SCHEMA pg_catalog FROM PUBLIC;
+REVOKE ALL ON SCHEMA information_schema FROM PUBLIC;
+GRANT USAGE ON SCHEMA pg_catalog TO sporttracker_app;
+GRANT USAGE ON SCHEMA information_schema TO sporttracker_app;
+
+-- Bloquer l'accès aux tables de sécurité
+REVOKE ALL ON pg_roles FROM sporttracker_app;
+REVOKE ALL ON pg_authid FROM sporttracker_app;
+```
+
+## 5. Procédure de sauvegarde et restauration
+
+### 5.1 Sauvegarde de la base de données
+
+Un script `backup_restore.sh` a été développé pour automatiser la sauvegarde :
+
+```bash
+# Sauvegarde complète de la base au format personnalisé
+pg_dump -U postgres -Fc -f backups/sporttracker_$(date +"%Y%m%d_%H%M%S").sql sporttracker
+
+# Compression de la sauvegarde
+gzip backups/sporttracker_*.sql
+```
+
+La commande pour lancer une sauvegarde est :
+```bash
+./fichiers_Annexes/scripts/backup_restore.sh backup
+```
+
+### 5.2 Restauration de la base de données
+
+Le même script permet de restaurer la base :
+
+```bash
+# Décompression si nécessaire
+gunzip -c ${RESTORE_FILE} > ${RESTORE_FILE%.gz}
+
+# Restauration selon le format
+pg_restore -U postgres -d sporttracker ${RESTORE_FILE}
+# ou
+psql -U postgres -d sporttracker -f ${RESTORE_FILE}
+```
+
+La commande pour restaurer est :
+```bash
+./fichiers_Annexes/scripts/backup_restore.sh restore <fichier_sauvegarde>
+```
+
+### 5.3 Gestion des sauvegardes
+
+Le script inclut également des fonctionnalités de gestion :
+
+```bash
+# Liste des sauvegardes disponibles
+./fichiers_Annexes/scripts/backup_restore.sh list
+
+# Nettoyage des sauvegardes de plus de 30 jours
+./fichiers_Annexes/scripts/backup_restore.sh cleanup
+```
+
+## Conclusion
+
+L'administration de la base de données SportTracker Basic a été configurée en suivant les meilleures pratiques PostgreSQL. La base est maintenant opérationnelle avec :
+
+- Une structure robuste comprenant 5 tables principales
+- Des données complètes pour démontrer le fonctionnement de l'application
+- Des utilisateurs avec des permissions appropriées
+- Des optimisations de performance par index et vues
+- Des mesures de sécurité pertinentes
+- Un système complet de sauvegarde et restauration
+
+Les scripts d'administration fournis permettent une gestion facile et automatisée de tous les aspects de la base de données, offrant ainsi une solution complète pour l'application SportTracker Basic.
