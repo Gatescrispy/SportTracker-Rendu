@@ -1,0 +1,201 @@
+# Configuration SportTracker Basic - Administration PostgreSQL
+# ==============================================
+
+## Informations générales
+
+Date de configuration : 11 avril 2025
+Version PostgreSQL : 16
+Système d'exploitation : macOS
+
+## Informations de connexion
+
+Host: localhost
+Port: 5432
+Database: sporttracker
+
+## Utilisateurs et mots de passe
+
+### Utilisateur application
+- Nom : sporttracker_app
+- Mot de passe : app_password_secure123
+- Droits : SELECT, INSERT, UPDATE sur les tables
+
+### Utilisateur administrateur
+- Nom : sporttracker_admin
+- Mot de passe : admin_password_secure456
+- Droits : Tous les privilèges (ALL PRIVILEGES)
+
+## Structure de la base de données
+
+### Tables principales
+- equipes : Équipes universitaires
+- joueurs : Joueurs des équipes
+- sports : Types de sports
+- matchs : Matchs joués entre équipes
+- statistiques_joueurs : Statistiques détaillées des joueurs lors des matchs
+
+### Contenu de la base
+- 10 équipes
+- 50 joueurs (5 par équipe)
+- 5 sports différents
+- 15 matchs
+- 28 statistiques de joueurs
+
+### Vues créées
+- team_stats : Statistiques générales des équipes
+- team_ranking : Classement des équipes par division avec calcul des points
+- top_players : Classement des joueurs par points marqués
+- players_by_position : Répartition des joueurs par position
+- match_details : Détails complets des matchs
+- team_confrontations : Historique des confrontations directes entre équipes
+- university_performance : Analyse des performances par établissement
+- sport_statistics : Statistiques globales par sport
+- admin_table_statistics : Statistiques techniques sur les tables
+- app_connection_details : Informations de connexion pour l'application
+
+## Fichier .env (à la racine du projet)
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=sporttracker
+DB_USER=sporttracker_app
+DB_PASSWORD=app_password_secure123
+DB_SSL_MODE=prefer
+```
+
+## Index créés pour l'optimisation
+
+### Table equipes
+- idx_equipes_nom : Recherche par nom d'équipe
+- idx_equipes_etablissement : Filtrage par université
+- idx_equipes_division : Classement par division
+
+### Table joueurs
+- idx_joueurs_equipe_id : Recherche de joueurs par équipe
+- idx_joueurs_nom_prenom : Recherche par nom/prénom
+- idx_joueurs_position : Filtrage par poste
+
+### Table matchs
+- idx_matchs_date : Recherche chronologique
+- idx_matchs_equipe_domicile : Recherche par équipe domicile
+- idx_matchs_equipe_visiteur : Recherche par équipe visiteuse
+- idx_matchs_sport : Filtrage par sport
+
+### Table statistiques_joueurs
+- idx_statistiques_joueur : Statistiques par joueur
+- idx_statistiques_match : Statistiques par match
+- idx_statistiques_points : Classement des meilleurs scoreurs
+
+## Scripts disponibles
+
+### Scripts SQL
+- create_tables.sql : Création des tables
+- create_users.sql : Gestion des utilisateurs et permissions
+- create_indexes.sql : Ajout d'index pour optimisation
+- insert_data.sql : Insertions pour sports, matchs
+- manual_import.sql : Alternative d'import pour équipes et joueurs
+- security_config.sql : Configuration de sécurité
+- maintenance.sql : VACUUM et ANALYZE pour maintenance
+- create_views.sql : Création des vues d'analyse de données
+- requetes_demonstration.sql : Exemples d'utilisation des vues
+
+### Scripts shell
+- run_all.sh : Installation complète automatisée
+- backup_restore.sh : Sauvegarde et restauration
+
+## Commandes importantes
+
+### Création de la base de données
+```
+createdb -U postgres sporttracker
+```
+
+### Exécution des scripts
+```
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/create_tables.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/manual_import.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/insert_data.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/create_indexes.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/create_users.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/security_config.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/maintenance.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/create_views.sql
+psql -U postgres -d sporttracker -f fichiers_Annexes/scripts/requetes_demonstration.sql
+```
+
+### Sauvegarde
+```
+pg_dump -U postgres -Fc -f backups/sporttracker_backup.sql sporttracker
+```
+
+### Restauration
+```
+pg_restore -U postgres -d sporttracker backups/sporttracker_backup.sql
+```
+
+### Connexion à la base de données
+```
+psql -U sporttracker_app -d sporttracker
+psql -U sporttracker_admin -d sporttracker
+```
+
+## Sécurité
+
+- Mots de passe forts pour tous les utilisateurs
+- Connexions limitées aux adresses IP locales (127.0.0.1/32, ::1/128, 192.168.0.0/24)
+- Audit des opérations sensibles via la table audit_log
+- Timeouts de session configurés (5 minutes pour les requêtes, 10 minutes pour les transactions)
+
+## Maintenance recommandée
+
+- Exécuter la maintenance régulièrement :
+  ```
+  psql -U sporttracker_admin -d sporttracker -f fichiers_Annexes/scripts/maintenance.sql
+  ```
+
+- Effectuer des sauvegardes quotidiennes :
+  ```
+  ./fichiers_Annexes/scripts/backup_restore.sh backup
+  ```
+
+- Nettoyer les anciennes sauvegardes mensuellement :
+  ```
+  ./fichiers_Annexes/scripts/backup_restore.sh cleanup
+  ```
+
+## Requêtes d'analyse utiles
+
+- Top des équipes par victoires:
+  ```sql
+  SELECT equipe_nom, etablissement, victoires FROM team_stats ORDER BY victoires DESC LIMIT 5;
+  ```
+
+- Meilleurs joueurs par points marqués:
+  ```sql
+  SELECT prenom || ' ' || nom AS joueur, equipe, total_points FROM top_players ORDER BY total_points DESC LIMIT 5;
+  ```
+
+- Performance des établissements:
+  ```sql
+  SELECT etablissement, nombre_equipes, pourcentage_victoires FROM university_performance ORDER BY pourcentage_victoires DESC;
+  ```
+
+- Détails des derniers matchs:
+  ```sql
+  SELECT to_char(date, 'DD/MM/YYYY'), sport, equipe_domicile, equipe_visiteur, vainqueur FROM match_details ORDER BY date DESC LIMIT 5;
+  ```
+
+## Chemin PostgreSQL
+
+Binaires PostgreSQL : /Library/PostgreSQL/16/bin/
+Commandes directes : psql, pg_dump, pg_restore
+
+## Notes importantes
+
+1. Pour résoudre les problèmes de permission lors de l'import CSV, utilisez manual_import.sql qui insère les données directement.
+2. Vérifiez que l'application peut se connecter en utilisant les identifiants du fichier .env.
+3. En cas de problème de connexion, vérifiez que PostgreSQL écoute sur le port 5432.
+4. Les statistiques ont été insérées avec les IDs de match 16, 21 et 26 (au lieu de 1, 6 et 11).
+5. Un système d'audit est en place pour suivre les opérations d'insertion, de mise à jour et de suppression.
+6. Toutes les vues sont commentées (accessible via \dv+ dans psql) pour faciliter leur compréhension et utilisation.
