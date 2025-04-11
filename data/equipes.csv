@@ -1,0 +1,11 @@
+id,nom,etablissement,coach,division
+1,Aigles,Université de Montréal,Jean Tremblay,A
+2,Lions,Université Laval,Marie Bergeron,A
+3,Dragons,Université de Sherbrooke,Robert Lafleur,B
+4,Panthères,HEC Montréal,Sophie Lambert,A
+5,Lynx,UQAM,Pierre Desjardins,B
+6,Phénix,Polytechnique Montréal,Julie Moreau,A
+7,Titans,Université McGill,David Wong,A
+8,Centaures,Concordia University,Nathalie Brown,B
+9,Cyclones,Université du Québec à Chicoutimi,Marc Simard,C
+10,Griffons,Université du Québec à Trois-Rivières,Éric Bouchard,C
